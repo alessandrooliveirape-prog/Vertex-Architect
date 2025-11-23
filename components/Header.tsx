@@ -12,7 +12,8 @@ export const Header: React.FC<HeaderProps> = ({ onNewProject, apiKey, setApiKey 
   const [tempKey, setTempKey] = useState('');
 
   const handleEditClick = () => {
-    setTempKey(apiKey);
+    // Ensure we never set undefined
+    setTempKey(apiKey || '');
     setIsEditingKey(true);
   };
 
@@ -54,16 +55,16 @@ export const Header: React.FC<HeaderProps> = ({ onNewProject, apiKey, setApiKey 
       {/* API Key Section */}
       <div className="bg-slate-950/50 border border-slate-800 rounded-lg p-2">
         {isEditingKey ? (
-          <div className="flex items-center gap-2 animate-fadeIn">
+          <div className="flex items-center gap-2">
             <input 
               type="password" 
-              value={tempKey}
+              value={tempKey || ''}
               onChange={(e) => setTempKey(e.target.value)}
               placeholder="Cole sua Gemini API Key (AIza...)"
               className="flex-1 bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded px-2 py-1.5 focus:border-vertex-500 focus:outline-none"
-              autoFocus
             />
             <button 
+              type="button"
               onClick={handleSaveKey}
               className="p-1.5 bg-vertex-600 text-white rounded hover:bg-vertex-500 transition-colors"
               title="Salvar Key"
@@ -71,6 +72,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewProject, apiKey, setApiKey 
               <Check className="w-3.5 h-3.5" />
             </button>
             <button 
+              type="button"
               onClick={handleCancelKey}
               className="p-1.5 bg-slate-700 text-slate-300 rounded hover:bg-slate-600 transition-colors"
               title="Cancelar"
@@ -87,6 +89,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewProject, apiKey, setApiKey 
               </span>
             </div>
             <button 
+              type="button"
               onClick={handleEditClick}
               className="flex items-center gap-1.5 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded transition-colors border border-slate-700"
             >
