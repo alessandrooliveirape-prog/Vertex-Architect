@@ -29,7 +29,7 @@ export default async function handler(req, res) {
       const contentPrompt = `Transforme esta ideia em um super prompt estruturado:\nIdeia original: ${userIdea}\nEstilo desejado: ${style || 'Geral'}\nCriatividade: ${creativity || 'Média'}`;
 
       const response = await ai.models.generateContent({
-        model:'gemini-1.5-flash',
+        model:'gemini-2.5-flash',
         contents: contentPrompt,
         config: {
           systemInstruction: systemInstruction,
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
 
     if (action === 'execute') {
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: { temperature: 0.5 }
       });
