@@ -3,9 +3,8 @@ import { Header } from './components/Header';
 import { PromptForm } from './components/PromptForm';
 import { PromptResult } from './components/PromptResult';
 import { HistoryList } from './components/HistoryList';
-import { generateSuperPrompt, executePrompt } from './services/geminiService';
 import { PromptStyle, CreativityLevel, HistoryItem, Attachment } from './types';
-import { AlertCircle, CheckCircle2, Code2, Heart } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function App() {
   const [apiKey, setApiKey] = useState<string>('');
@@ -69,7 +68,6 @@ export default function App() {
   };
 
   const handleNewProject = () => {
-    // Reset imediato
     setUserIdea('');
     setSelectedStyle(PromptStyle.GENERAL);
     setCreativity(CreativityLevel.MEDIUM);
@@ -81,10 +79,10 @@ export default function App() {
     setError(null);
     setCurrentHistoryId(null);
     
-    // Feedback visual
     setToastMessage("Novo projeto iniciado!");
   };
 
+  // Refatorado para chamar o backend (Serverless Function Vercel)
   const handleGenerate = async () => {
     if (!apiKey) {
       setError("Por favor, configure sua API Key no painel acima para continuar.");
@@ -97,15 +95,33 @@ export default function App() {
     }
 
     setIsGenerating(true);
-    setFinalResult(''); // Reset previous result
+    setFinalResult('');
     setError(null);
     setGeneratedPrompt('');
 
     try {
-      const result = await generateSuperPrompt(apiKey, userIdea, selectedStyle, creativity, attachments);
+      const response = await fetch('/api/vertex', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate',
+          apiKey,
+          userIdea,
+          style: selectedStyle,
+          creativity,
+          attachments
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const result = data.result;
+
       setGeneratedPrompt(result);
       
-      // Add to history
       const newItem: HistoryItem = {
         id: crypto.randomUUID(),
         timestamp: Date.now(),
@@ -121,12 +137,13 @@ export default function App() {
 
     } catch (err) {
       console.error(err);
-      setError("Ocorreu um erro ao gerar o prompt. Verifique sua API Key e conexão.");
+      setError("Falha na comunicação com o servidor Vertex. Verifique a API ou os logs da Vercel.");
     } finally {
       setIsGenerating(false);
     }
   };
 
+  // Refatorado para chamar o backend para execução final
   const handleRunPrompt = async () => {
     if (!apiKey) {
       setError("Por favor, configure sua API Key para continuar.");
@@ -139,10 +156,25 @@ export default function App() {
     setError(null);
     
     try {
-      const result = await executePrompt(apiKey, generatedPrompt);
+      const response = await fetch('/api/vertex', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'execute',
+          apiKey,
+          prompt: generatedPrompt
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const result = data.result;
+
       setFinalResult(result);
 
-      // Update current history item with the result
       if (currentHistoryId) {
         setHistory(prev => prev.map(item => 
           item.id === currentHistoryId 
@@ -153,20 +185,20 @@ export default function App() {
 
     } catch (err) {
       console.error(err);
-      setError("Ocorreu um erro ao executar o prompt final. Verifique sua API Key.");
+      setError("Ocorreu um erro ao executar o prompt final no servidor.");
     } finally {
       setIsExecuting(false);
     }
   };
 
   const handleSelectHistory = (item: HistoryItem) => {
-    setUserIdea(item.idea.replace(/ \[\d+ arquivo\(s\)\]$/, '')); // Remove the suffix hint
+    setUserIdea(item.idea.replace(/ \[\d+ arquivo\(s\)\]$/, ''));
     setSelectedStyle(item.style);
     setCreativity(item.creativity);
     setGeneratedPrompt(item.generatedPrompt);
     setFinalResult(item.finalResult || '');
     setCurrentHistoryId(item.id);
-    setAttachments([]); // Reset attachments on history load
+    setAttachments([]);
     setError(null);
     setToastMessage("Projeto carregado do histórico");
   };
@@ -185,7 +217,6 @@ export default function App() {
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-900 text-slate-300 font-sans selection:bg-vertex-500/30 selection:text-vertex-200 overflow-hidden relative">
       
-      {/* Toast Notification */}
       {toastMessage && (
         <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="bg-slate-800 text-white px-4 py-2 rounded-full shadow-2xl border border-vertex-500/30 flex items-center gap-2 text-sm font-medium">
@@ -195,7 +226,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Left Panel: Input & Controls (Scrollable) */}
       <div className="w-full lg:w-5/12 xl:w-1/3 bg-slate-900 border-r border-slate-800 flex flex-col h-auto lg:h-full lg:overflow-hidden">
         <div className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar flex flex-col">
           <Header 
@@ -225,7 +255,6 @@ export default function App() {
               </div>
             )}
 
-            {/* History List */}
             <HistoryList 
               history={history}
               currentId={currentHistoryId}
@@ -233,24 +262,22 @@ export default function App() {
               onDelete={handleDeleteHistory}
             />
 
-            {/* Helper Text / Tips - Only show if history is empty to save space */}
             {history.length === 0 && (
               <div className="mt-12 pt-8 border-t border-slate-800/50">
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Como funciona</h4>
                 <p className="text-sm text-slate-500 leading-relaxed mb-2">
-                  1. Configure sua API Key do Google AI Studio.
+                  1. Configure sua API Key no painel (processada de forma segura no backend).
                 </p>
                 <p className="text-sm text-slate-500 leading-relaxed mb-2">
                   2. Digite sua ideia (ou anexe uma imagem) e clique em "Gerar Super Prompt".
                 </p>
                 <p className="text-sm text-slate-500 leading-relaxed">
-                  3. Revise o prompt gerado no painel à direita e clique no botão <span className="inline-block px-1.5 py-0.5 bg-vertex-600/20 text-vertex-300 rounded text-[10px] uppercase font-bold">Play</span> para executar.
+                  3. Revise o prompt gerado no painel à direita e clique no botão Play para executar.
                 </p>
               </div>
             )}
           </div>
 
-          {/* Credits Footer */}
           <div className="mt-8 pt-6 border-t border-slate-800/50 flex flex-col items-center justify-center text-center opacity-70 hover:opacity-100 transition-opacity">
             <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-1">
               <span>Desenvolvido por</span>
@@ -265,7 +292,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Right Panel: Output / Editor View (Scrollable) */}
       <div className="w-full lg:w-7/12 xl:w-2/3 bg-slate-950 flex flex-col h-[600px] lg:h-full relative overflow-hidden border-t lg:border-t-0 border-slate-800">
         <PromptResult 
           prompt={generatedPrompt} 
@@ -279,3 +305,4 @@ export default function App() {
     </div>
   );
 }
+       
